@@ -8,7 +8,9 @@ const emailSchema= mogoose.Schema({
     senderName:{type:String, required:true},
     signature:{type:String, required:true},
     dailySendingCapacity:{type:Number, required:true},
-    daysAssigned:{type:Array, required:false}
+    daysAssigned:{type:Array, required:false},
+    primaryEmail:{type:Boolean, required:true},
+    parentEmail:{type:String, required:false}
 },{timestamps:true})
 
 const emailModel= mongoose.model("emailModel", emailSchema);

@@ -17,7 +17,7 @@ function stopCronJob(taskName) {
 
 
 
-function sendOutbound(senderEmail, senderPassword, senderName, subject, body, emailList, nameList, sendingRate, taskName, outboundName) {
+function sendOutbound(senderEmail, senderPassword, senderName, subject, body, emailList, nameList, sendingRate, taskName, outboundName, sendingFrom) {
     const transporter = nodemailer.createTransport({
         service: "gmail",
         auth: {
@@ -42,11 +42,12 @@ function sendOutbound(senderEmail, senderPassword, senderName, subject, body, em
         if (index <= emailList.length) {
             const recieverName = nameList[index]
             const reciverEmail= emailList[index]
+            // if( recieverName==null){recieverName=""}
             
                    
-                    emailContent = `Hello ${recieverName},\n\n${body}`
+                    emailContent = `Hello ${recieverName===null?"":recieverName},\n\n${body}`
                     const mailOptions = {
-                        from: `"${senderName}" <${senderEmail}>`,
+                        from: `"${senderName}" <${sendingFrom}>`,
                         to: reciverEmail ,
                         subject: subject,
                         text: emailContent
@@ -58,9 +59,9 @@ function sendOutbound(senderEmail, senderPassword, senderName, subject, body, em
 
                     transporter.sendMail(mailOptions, function (error, info) {
                         if (error) {
-                            reject("failed to send");
+                            console.log("failed to send");
                         } else {
-                            resolve("email sent");
+                            console.log("email sent");
                         }
                     });
             index = index + 1;
@@ -86,7 +87,7 @@ function sendOutbound(senderEmail, senderPassword, senderName, subject, body, em
         taskModel.findOneAndUpdate({ taskName: taskName }, { $set: { status: 'completed' } }, { new: true })
             .then((updatedDocument) => {
                 if (updatedDocument) {
-                     sendTaskCompletionEmail(senderEmail, outboundName ,taskName)
+                     sendTaskCompletionEmail(sendingFrom, outboundName ,taskName)
                 } else {
                     console.log('No document found for the given taskName');
                 }
