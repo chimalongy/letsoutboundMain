@@ -17,7 +17,7 @@ function stopCronJob(taskName) {
 
 
 
-function sendOutbound(senderEmail, senderPassword, senderName, subject, body, emailList, nameList, sendingRate, taskName, outboundName, sendingFrom) {
+function sendOutbound(senderEmail, senderPassword, senderName, subject, body, emailList, nameList, sendingRate, taskName, outboundName, sendingFrom, taskGreeting) {
     const transporter = nodemailer.createTransport({
         service: "gmail",
         auth: {
@@ -45,7 +45,7 @@ function sendOutbound(senderEmail, senderPassword, senderName, subject, body, em
             // if( recieverName==null){recieverName=""}
             
                    
-                    emailContent = `Hello ${recieverName===null?"":recieverName},\n\n${body}`
+                    emailContent = `${taskGreeting}${recieverName===null?"":" "+recieverName},\n\n${body}`
                     const mailOptions = {
                         from: `"${senderName}" <${sendingFrom}>`,
                         to: reciverEmail ,

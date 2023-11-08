@@ -165,7 +165,7 @@ app.post("/registeroutbound", async (req, res) => {
 app.post("/registertask", async (req, res) => {
     try {
 
-        const { ownerAccount, outboundName, taskName, taskDate, taskTime, taskSendingRate, taskSubject, taskBody, timeZone } = req.body;
+        const { ownerAccount, outboundName, taskName, taskDate, taskTime, taskSendingRate, taskSubject, taskBody, timeZone, taskGreeting } = req.body;
 
 
         function taskFunction() {
@@ -218,18 +218,9 @@ app.post("/registertask", async (req, res) => {
 
                             newBody = taskBody + "\n\n" + senderSignature
 
-                            // console.log(`
-                            //     =================sending details for ${senderEmail} ======================================
-                            //     sender email: ${senderEmail}
-                            //     sending from: ${sendingFrom}
-                            //     senderName: ${senderName}
-                            //     senderSignature: ${senderSignature}
-                            //     senderPassword:${senderPassword}
-                            //     ===========================================================================================                       `)
-                            // console.log(thisUserRegisteredEmails)
-                            // //check if the email has not been deleted.
+                           
                             if (thisUserRegisteredEmails.some(item => item === senderEmail)) {
-                                let sent = emailSender.sendOutbound(senderEmail, senderPassword, senderName, taskSubject, newBody, element.emailAllocations, element.nameAllocations, taskSendingRate, taskName, outboundName, sendingFrom)
+                                let sent = emailSender.sendOutbound(senderEmail, senderPassword, senderName, taskSubject, newBody, element.emailAllocations, element.nameAllocations, taskSendingRate, taskName, outboundName, sendingFrom, taskGreeting)
                                 // console.log("this email is registered "+sendingFrom)
                             }
                             else {
