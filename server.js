@@ -11,14 +11,15 @@ const outBoundModel = require('./models/outboundSchema');
 const taskModel = require('./models/taskSchema')
 const port = process.env.PORT;
 const { sendRegistrationCode, sendOutboundEmailNotFound, sendOutboundEmailDataNotFound } = require('./modules/emailSender')
-const cron = require('node-cron')
+const cron = require('node-cron') 
+
 global.cronJobs = {}
 const emailSender = require('./modules/outboundEngine');
 const path= require('path')
 
 
 
-const app = express();
+const app = express(); 
 app.use(cors());
 app.use(bodyParser.json())
 
@@ -32,10 +33,10 @@ function setupCronJob(taskName, schedule, taskFunction, timeZone) {
 
 
 
+ 
 
 
-
-
+ 
 // send registration code
 app.post("/sendregisterationcode", async (req, res) => {
     try {
@@ -64,12 +65,30 @@ app.post("/finduser", async (req, res) => {
 })
 app.post("/findemail", async (req, res) => {
     try {
-        const { emailAddress } = req.body;
-        const emailCheck = await emailModel.findOne({ emailAddress: emailAddress })
+        const { ownerAccount, emailAddress } = req.body;
+        const emailCheck = await emailModel.findOne({ownerAccount:ownerAccount, emailAddress: emailAddress})
         if (!emailCheck) {
             return res.status(200).json({ message: "not-found" });
         }
-        res.status(200).json({ message: "found" })
+        res.status(200).json({ message: "found", data:emailCheck })
+    }
+    catch (error) {
+        res.status(400).json(error.message);
+    }
+})
+app.post("/findsimilaremails", async (req, res) => {
+    try {
+        const { ownerAccount, emailAddress } = req.body;
+        
+         
+        const emailCheck = await emailModel.find({ownerAccount:ownerAccount, emailAddress: emailAddress })
+        if (emailCheck){
+            return res.status(200).json({ message:"found", data:emailCheck})
+        }
+        else{
+            return   res.status(200).json({ message:"not-found"})
+        }
+       
     }
     catch (error) {
         res.status(400).json(error.message);

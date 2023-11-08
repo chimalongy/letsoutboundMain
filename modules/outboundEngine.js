@@ -54,7 +54,7 @@ function sendOutbound(senderEmail, senderPassword, senderName, subject, body, em
                     };
 
 
-                   console.log(" sending to :" + reciverEmail)
+                   console.log(` sending from ${sendingFrom}  to :" + ${reciverEmail}`)
 
 
                     transporter.sendMail(mailOptions, function (error, info) {
