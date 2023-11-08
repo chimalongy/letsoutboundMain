@@ -174,9 +174,13 @@ app.post("/registertask", async (req, res) => {
             //get all user registed email list
             emailModel.find({ ownerAccount: ownerAccount })
                 .then((result) => {
-                    result.forEach((item) => {
-                        thisUserRegisteredEmails.push(item.emailAddress)
-                    })
+                    // result.forEach((item) => {
+                    //     thisUserRegisteredEmails.push(item.emailAddress)
+                    // })
+
+                    for (let i=0; i< result.length;i++){
+                        thisUserRegisteredEmails.push(result[i].emailAddress)
+                    }
                 })
                 .catch(error => console.log(error))
 
@@ -195,7 +199,7 @@ app.post("/registertask", async (req, res) => {
                             let senderName = "";
                             let senderSignature = ""
                             let senderPassword = ""
-
+ 
                             let mailData = await emailModel.findOne({ emailAddress: senderEmail })
                             if (mailData.primaryEmail == false) {
                                 senderEmail = mailData.parentEmail;
@@ -226,14 +230,19 @@ app.post("/registertask", async (req, res) => {
                             // //check if the email has not been deleted.
                             if (thisUserRegisteredEmails.some(item => item === senderEmail)) {
                                 let sent = emailSender.sendOutbound(senderEmail, senderPassword, senderName, taskSubject, newBody, element.emailAllocations, element.nameAllocations, taskSendingRate, taskName, outboundName, sendingFrom)
+                                // console.log("this email is registered "+sendingFrom)
                             }
                             else {
                                 //send an email to the owner telling him that he deleted the email required to  send a task
                                 sendOutboundEmailNotFound(ownerAccount, outboundName, taskName, senderEmail)
+                            //    console.log("this email is not registered "+sendingFrom)
                             }
+                            //console.log("----------------------------------------------------")
+
                         }
                         catch (error) {
-                            sendOutboundEmailDataNotFound(ownerAccount, outboundName, taskName)
+                             sendOutboundEmailDataNotFound(ownerAccount, outboundName, taskName)
+                            // console.log(error)
                         }
 
 
@@ -250,32 +259,17 @@ app.post("/registertask", async (req, res) => {
 
         }
 
-
-        
+         
 
         const [year, month, day] = taskDate.split('-').map(Number);
         const [hour, minute] = taskTime.split(':').map(Number);
         const scheduledDate = new Date(year, month - 1, day, hour, minute);
         const cronSchedule = `${minute} ${hour} ${day} ${month} *`;
 
-
-
-
-
         setupCronJob(taskName, cronSchedule, taskFunction, timeZone)
-
-
-
-
-
-
-
-
 
         //save task
         const newTask = await taskModel.create({ ownerAccount, outboundName, taskName, taskDate, taskTime, taskSendingRate, taskSubject, taskBody, status: "pending" })
-
-
         //update taskCount
 
         outBoundModel.findOne({ outboundName: outboundName })
