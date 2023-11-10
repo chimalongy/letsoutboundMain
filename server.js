@@ -11,15 +11,15 @@ const outBoundModel = require('./models/outboundSchema');
 const taskModel = require('./models/taskSchema')
 const port = process.env.PORT;
 const { sendRegistrationCode, sendOutboundEmailNotFound, sendOutboundEmailDataNotFound } = require('./modules/emailSender')
-const cron = require('node-cron') 
+const cron = require('node-cron')
 
 global.cronJobs = {}
 const emailSender = require('./modules/outboundEngine');
-const path= require('path')
+const path = require('path')
 
 
 
-const app = express(); 
+const app = express();
 app.use(cors());
 app.use(bodyParser.json())
 
@@ -28,15 +28,17 @@ app.use(bodyParser.json())
 function setupCronJob(taskName, schedule, taskFunction, timeZone) {
     global.cronJobs[taskName] = cron.schedule(schedule, taskFunction, {
         timezone: timeZone // Specify the desired time zone
-      });
+    });
 }
 
 
 
- 
 
 
- 
+
+
+
+
 // send registration code
 app.post("/sendregisterationcode", async (req, res) => {
     try {
@@ -66,11 +68,11 @@ app.post("/finduser", async (req, res) => {
 app.post("/findemail", async (req, res) => {
     try {
         const { ownerAccount, emailAddress } = req.body;
-        const emailCheck = await emailModel.findOne({ownerAccount:ownerAccount, emailAddress: emailAddress})
+        const emailCheck = await emailModel.findOne({ ownerAccount: ownerAccount, emailAddress: emailAddress })
         if (!emailCheck) {
             return res.status(200).json({ message: "not-found" });
         }
-        res.status(200).json({ message: "found", data:emailCheck })
+        res.status(200).json({ message: "found", data: emailCheck })
     }
     catch (error) {
         res.status(400).json(error.message);
@@ -79,16 +81,16 @@ app.post("/findemail", async (req, res) => {
 app.post("/findsimilaremails", async (req, res) => {
     try {
         const { ownerAccount, emailAddress } = req.body;
-        
-         
-        const emailCheck = await emailModel.find({ownerAccount:ownerAccount, emailAddress: emailAddress })
-        if (emailCheck){
-            return res.status(200).json({ message:"found", data:emailCheck})
+
+
+        const emailCheck = await emailModel.find({ ownerAccount: ownerAccount, emailAddress: emailAddress })
+        if (emailCheck) {
+            return res.status(200).json({ message: "found", data: emailCheck })
         }
-        else{
-            return   res.status(200).json({ message:"not-found"})
+        else {
+            return res.status(200).json({ message: "not-found" })
         }
-       
+
     }
     catch (error) {
         res.status(400).json(error.message);
@@ -98,14 +100,15 @@ app.post("/findsimilaremails", async (req, res) => {
 
 app.post("/updatedaysassigned", async (req, res) => {
     try {
-        const { email, days } = req.body
+        const { ownerAccount, email, day, taskName } = req.body
         // Find the document by its email address
-        const findEmail = await emailModel.findOne({ emailAddress: email })
+        const findEmail = await emailModel.findOne({ ownerAccount: ownerAccount, emailAddress: email })
         if (!findEmail) {
             return res.status(200).json({ message: "emailnotfound" })
         }
 
-        const pushed = findEmail.daysAssigned.push(days)
+        let assignedData = [day, taskName]
+        const pushed = findEmail.daysAssigned.push(assignedData)
 
         if (!pushed) {
             res.status(200).json({ message: "could not push" })
@@ -118,6 +121,59 @@ app.post("/updatedaysassigned", async (req, res) => {
         res.status(400).json(error.message)
     }
 })
+app.post("/updateEmailData", async (req, res) => {
+    try {
+        const { ownerAccount, emailAddress, sendingFrom, signature, senderName, dailySendingCapacity } = req.body
+        console.log(req.body)
+
+        // Find the document by its email address
+
+        if (emailAddress == sendingFrom) {
+
+
+            const updatedEmail = await emailModel.findOneAndUpdate(
+                { ownerAccount: ownerAccount, emailAddress: emailAddress },
+                { $set: { senderName: senderName, signature: signature, dailySendingCapacity: dailySendingCapacity } },
+                { new: true }
+            );
+
+            if (updatedEmail) { return res.status(200).json({ message: "email-updated" }) }
+            else { return res.status(200).json({ message: "email-not-updated" }) }
+        }
+        else {
+            const updatedEmail = await emailModel.findOneAndUpdate(
+                { ownerAccount: ownerAccount, emailAddress: emailAddress, parentEmail: sendingFrom },
+                { $set: { senderName: senderName, signature: signature, dailySendingCapacity: dailySendingCapacity } },
+                { new: true }
+            );
+
+            if (updatedEmail) { return res.status(200).json({ message: "email-updated" }) }
+            else { return res.status(200).json({ message: "email-not-updated" }) }
+        }
+
+
+
+
+        // if (!findEmail) {
+        //     return res.status(200).json({ message: "emailnotfound" })
+        // }
+
+        // let assignedData=[day,taskName]
+        // const pushed = findEmail.daysAssigned.push(assignedData)
+
+        // if (!pushed) {
+        //     res.status(200).json({ message: "could not push" })
+        // }
+
+        // findEmail.save();
+        // res.status(200).json(findEmail);
+
+    } catch (error) {
+        res.status(400).json(error.message)
+    }
+})
+
+
 
 
 app.post("/registeremail", async (req, res) => {
@@ -178,7 +234,7 @@ app.post("/registertask", async (req, res) => {
                     //     thisUserRegisteredEmails.push(item.emailAddress)
                     // })
 
-                    for (let i=0; i< result.length;i++){
+                    for (let i = 0; i < result.length; i++) {
                         thisUserRegisteredEmails.push(result[i].emailAddress)
                     }
                 })
@@ -199,7 +255,7 @@ app.post("/registertask", async (req, res) => {
                             let senderName = "";
                             let senderSignature = ""
                             let senderPassword = ""
- 
+
                             let mailData = await emailModel.findOne({ emailAddress: senderEmail })
                             if (mailData.primaryEmail == false) {
                                 senderEmail = mailData.parentEmail;
@@ -218,7 +274,7 @@ app.post("/registertask", async (req, res) => {
 
                             newBody = taskBody + "\n\n" + senderSignature
 
-                           
+
                             if (thisUserRegisteredEmails.some(item => item === senderEmail)) {
                                 let sent = emailSender.sendOutbound(senderEmail, senderPassword, senderName, taskSubject, newBody, element.emailAllocations, element.nameAllocations, taskSendingRate, taskName, outboundName, sendingFrom, taskGreeting)
                                 // console.log("this email is registered "+sendingFrom)
@@ -226,13 +282,13 @@ app.post("/registertask", async (req, res) => {
                             else {
                                 //send an email to the owner telling him that he deleted the email required to  send a task
                                 sendOutboundEmailNotFound(ownerAccount, outboundName, taskName, senderEmail)
-                            //    console.log("this email is not registered "+sendingFrom)
+                                //    console.log("this email is not registered "+sendingFrom)
                             }
                             //console.log("----------------------------------------------------")
 
                         }
                         catch (error) {
-                             sendOutboundEmailDataNotFound(ownerAccount, outboundName, taskName)
+                            sendOutboundEmailDataNotFound(ownerAccount, outboundName, taskName)
                             // console.log(error)
                         }
 
@@ -250,7 +306,7 @@ app.post("/registertask", async (req, res) => {
 
         }
 
-         
+
 
         const [year, month, day] = taskDate.split('-').map(Number);
         const [hour, minute] = taskTime.split(':').map(Number);
@@ -414,12 +470,12 @@ app.post("/deleteOutboundEmail", async (req, res) => {
 
     // Delete documents from outBoundModel
     outbound = await outBoundModel.findOne({ outboundName: outboundName })
-    let newMailList=[]
-    
+    let newMailList = []
+
 
     if (outbound) {
         outbound.emailList.forEach(emailEntry => {
-           
+
             let formerEmailList = emailEntry.emailAllocations
             let formerNameList = emailEntry.nameAllocations
 
@@ -439,9 +495,9 @@ app.post("/deleteOutboundEmail", async (req, res) => {
             }
             emailEntry.emailAllocations = newEmailList;
             emailEntry.nameAllocations = newNameList;
-            
+
         });
-        newMailList=outbound.emailList    
+        newMailList = outbound.emailList
     }
     else {
         return res.status(200).json({ message: "outbound-not-found" })
@@ -449,24 +505,24 @@ app.post("/deleteOutboundEmail", async (req, res) => {
 
     try {
         const updatedDoc = await outBoundModel.findOneAndUpdate(
-          { outboundName:  outboundName, },
-          { $set: { emailList: newMailList } },
-          { new: true }
+            { outboundName: outboundName, },
+            { $set: { emailList: newMailList } },
+            { new: true }
         );
-      
+
         if (updatedDoc) {
             return res.status(200).json({ message: "deleted" })
         } else {
-            return res.status(200).json({ message: "could-not-delete"})
+            return res.status(200).json({ message: "could-not-delete" })
         }
-      } catch (err) {
+    } catch (err) {
         console.error(err);
-      }
-      
+    }
 
 
 
-   
+
+
 
 
 
@@ -525,11 +581,11 @@ app.post("/deleteEmail", async (req, res) => {
 
 
 app.use(express.static(path.join(__dirname, "client/build")))
-console.log( "__dirnames is: "+__dirname)
+console.log("__dirnames is: " + __dirname)
 
-app.get("*", (req, res)=>{ 
+app.get("*", (req, res) => {
     res.sendFile(
-        path.join(__dirname,"client/build/index.html")
+        path.join(__dirname, "client/build/index.html")
     )
 })
 
