@@ -12,6 +12,7 @@ const taskModel = require('./models/taskSchema')
 const port = process.env.PORT;
 const { sendRegistrationCode, sendOutboundEmailNotFound, sendOutboundEmailDataNotFound } = require('./modules/emailSender')
 const cron = require('node-cron')
+const { emailExtractor } = require("./modules/scrap")
 
 global.cronJobs = {}
 const emailSender = require('./modules/outboundEngine');
@@ -32,9 +33,21 @@ function setupCronJob(taskName, schedule, taskFunction, timeZone) {
 }
 
 
+app.post("/scrapEmails", async (req, res) => {
 
+    const {ownerAccount, domains}=req.body
+    console.log(ownerAccount)
 
+    emailExtractor(domains)
+        // .then((allEmails) => {
+        //    return res.status(200).json({message:allEmails})
+        // })
+        // .catch((error) => {
+        //     return res.status(200).json({message:"error occured"})
+        // });
+})
 
+ 
 
 
 
