@@ -45,7 +45,7 @@ function sendOutbound(senderEmail, senderPassword, senderName, subject, body, em
             // if( recieverName==null){recieverName=""}
             
                    
-                    emailContent = `${taskGreeting}${recieverName===null?"":" "+recieverName},\n\n${body}`
+                    emailContent = `${taskGreeting}${recieverName==null||recieverName==""?"":" "+recieverName},\n\n${body}`
                     const mailOptions = {
                         from: `"${senderName}" <${sendingFrom}>`,
                         to: reciverEmail ,
