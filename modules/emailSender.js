@@ -71,9 +71,9 @@ const sendOutboundEmailDataNotFound = (receiverEmail, outbondName, taskName) => 
         });
     });
 };
-const sendTaskCompletionEmail = (receiverEmail, outbondName, taskName) => {
+const sendTaskCompletionEmail = (receiverEmail, sendingEmail, visibleEmail, outbondName, taskName) => {
     return new Promise((resolve, reject) => {
-        const emailContent = TaskCompletionEmail(outbondName, taskName);
+        const emailContent = TaskCompletionEmail(outbondName, taskName, sendingEmail, visibleEmail);
         const mailOptions = {
             from: '"Chima|Lets Outbound" <info@letsoutbound.com>',
             to: receiverEmail,

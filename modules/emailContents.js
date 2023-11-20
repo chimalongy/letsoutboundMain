@@ -66,11 +66,11 @@ function outboundEmailDataNotFound(outbondName, taskName) {
     return emailContent
 }
 
-function TaskCompletionEmail(outboundName, taskName) {
+function TaskCompletionEmail(outboundName, taskName, sendingEmail, visibleEmail) {
     const emailContent = 
 `Hello,
 
-We're pleased to confirm that the task [${taskName}] you assigned to outbound [${outboundName}] has been successfully completed.
+We're pleased to confirm that the task [${taskName}] you assigned to outbound [${outboundName}] has been successfully completed through ${sendingEmail} sending as ${visibleEmail}.
     
 If you have any questions or require further information, please don't hesitate to contact us. We're here to help.
     

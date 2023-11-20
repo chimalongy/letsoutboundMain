@@ -9,7 +9,7 @@ const userModel = require('./models/userSchema');
 const emailModel = require('./models/emailSchema')
 const outBoundModel = require('./models/outboundSchema');
 const taskModel = require('./models/taskSchema')
-const port = process.env.PORT;
+let port = process.env.PORT;
 const { sendRegistrationCode, sendOutboundEmailNotFound, sendOutboundEmailDataNotFound } = require('./modules/emailSender')
 const cron = require('node-cron')
 const { emailExtractor } = require("./modules/scrap")
@@ -21,7 +21,7 @@ const path = require('path')
 
 
 const app = express();
-app.use(cors());
+app.use(cors()); 
 app.use(bodyParser.json())
 
 //set up cron jobs
@@ -35,19 +35,19 @@ function setupCronJob(taskName, schedule, taskFunction, timeZone) {
 
 app.post("/scrapEmails", async (req, res) => {
 
-    const {ownerAccount, domains}=req.body
+    const { ownerAccount, domains } = req.body
     console.log(ownerAccount)
 
     emailExtractor(domains)
-        // .then((allEmails) => {
-        //    return res.status(200).json({message:allEmails})
-        // })
-        // .catch((error) => {
-        //     return res.status(200).json({message:"error occured"})
-        // });
+    // .then((allEmails) => {
+    //    return res.status(200).json({message:allEmails})
+    // })
+    // .catch((error) => {
+    //     return res.status(200).json({message:"error occured"})
+    // });
 })
 
- 
+
 
 
 
@@ -234,88 +234,146 @@ app.post("/registeroutbound", async (req, res) => {
 app.post("/registertask", async (req, res) => {
     try {
 
-        const { ownerAccount, outboundName, taskName, taskDate, taskTime, taskSendingRate, taskSubject, taskBody, timeZone, taskGreeting } = req.body;
+        const { ownerAccount, outboundName, taskName, taskDate, taskTime, taskSendingRate, taskSubject, taskBody, timeZone, taskGreeting, taskBodyType } = req.body;
 
 
-        function taskFunction() {
+        async function taskFunction() {
 
-            const thisUserRegisteredEmails = []
-            //get all user registed email list
-            emailModel.find({ ownerAccount: ownerAccount })
-                .then((result) => {
-                    // result.forEach((item) => {
-                    //     thisUserRegisteredEmails.push(item.emailAddress)
-                    // })
+            // 1. GET ALL EMAIL DATA
+            const thisUserRegisteredEmails = await emailModel.find({ ownerAccount: ownerAccount })
 
-                    for (let i = 0; i < result.length; i++) {
-                        thisUserRegisteredEmails.push(result[i].emailAddress)
-                    }
-                })
-                .catch(error => console.log(error))
+            if (thisUserRegisteredEmails) {
+                //2. GET OUBOUND DATA
+                const thisOutbound = await outBoundModel.findOne({ outboundName: outboundName })
 
-            //get the Partcular Outbound
-            outBoundModel.findOne({ outboundName: outboundName })
-                .then((result) => {
+                if (thisOutbound) {
+
+                    let emailList = thisOutbound.emailList
+
+                    for (let index = 0; index < emailList.length; index++) {
+                        let element = emailList[index]
+
+                        //3 CHECK IF EMAIL EXISTS IN USER EMAILS
+                        let allocatedEmailExist = false;
+                        let sendingFromExist = false;
+
+                        if (element.allocatedEmail == element.sendingFrom) {
+                            for (let i = 0; i < thisUserRegisteredEmails.length; i++) {
+                                if (thisUserRegisteredEmails[i].emailAddress == element.sendingFrom) {
+                                    sendingFromExist = true;
+                                    allocatedEmailExist = true;
+                                    // console.log(`
+                                    //     You selected the seconding email ${element.allocatedEmail} whose parent email is ${element.sendingFrom}\n
+                                    //     it was fond to be parent email.
+
+                                    // `)
+
+                                }
+                            }
+                        }
+                        else {
+                            for (let i = 0; i < thisUserRegisteredEmails.length; i++) {
+                                if (element.allocatedEmail == thisUserRegisteredEmails[i].emailAddress) {
+                                    if ((thisUserRegisteredEmails[i].primaryEmail !== true) && (thisUserRegisteredEmails[i].parentEmail == element.sendingFrom)) {
+                                        allocatedEmailExist = true;
+                                        // console.log(`
+                                        //             You selected the seconding email ${element.allocatedEmail} whose parent email is ${element.sendingFrom}\n
+                                        //             it was fond.
+
+                                        //         `)
+                                    }
+
+                                }
+                                else if (element.sendingFrom == thisUserRegisteredEmails[i].emailAddress) { sendingFromExist = true }
+                            }
+                        }
 
 
-                    const emailList = result.emailList
+                        // console.log(thisUserRegisteredEmails)
 
-                    emailList.forEach(async element => {
+                        if (allocatedEmailExist && sendingFromExist) {
+                            let allocatedEmail = element.allocatedEmail; // what will be show on the email
+                            let sendingFrom = element.sendingFrom;// sending email address
+                            let allocatedEmailData;
+                            let sendingFromData;
 
-                        try {
-                            let senderEmail = element.allocatedEmail;// sending email address
-                            let sendingFrom = element.allocatedEmail;// what will be show on the email
+                            console.log("the allocated email is : " + allocatedEmail)
+                            console.log("the sending from email is : " + sendingFrom)
+
                             let senderName = "";
-                            let senderSignature = ""
+                            let senderSignature;
                             let senderPassword = ""
+                            let sendingEmail = ""
+                            let visibleEmail = ""
 
-                            let mailData = await emailModel.findOne({ emailAddress: senderEmail })
-                            if (mailData.primaryEmail == false) {
-                                senderEmail = mailData.parentEmail;
-                                sendingFrom = mailData.emailAddress
-                                senderName = mailData.senderName
-                                senderSignature = mailData.signature
-                                senderPassword = mailData.password;
+
+                            // EXTRACTING exact pair MAIL DATA
+                            if (allocatedEmail == sendingFrom) {
+                                for (let i = 0; i < thisUserRegisteredEmails.length; i++) {
+                                    if (thisUserRegisteredEmails[i].emailAddress == allocatedEmail) {
+                                        allocatedEmailData = thisUserRegisteredEmails[i]
+                                    }
+                                }
+
+                                senderName = allocatedEmailData.senderName;
+                                senderSignature = allocatedEmailData.signature;
+                                senderPassword = allocatedEmailData.password
+                                sendingEmail = allocatedEmailData.emailAddress
+                                visibleEmail = allocatedEmailData.emailAddress
+
                             }
                             else {
-                                senderEmail = mailData.emailAddress
-                                sendingFrom = mailData.emailAddress
-                                senderName = mailData.senderName
-                                senderSignature = mailData.signature
-                                senderPassword = mailData.password;
-                            }
+                                for (let i = 0; i < thisUserRegisteredEmails.length; i++) {
+                                    if (thisUserRegisteredEmails[i].emailAddress == sendingFrom) {
+                                        sendingFromData = thisUserRegisteredEmails[i]
+                                    }
+                                }
 
-                            newBody = taskBody + "\n\n" + senderSignature
+                                for (let i = 0; i < thisUserRegisteredEmails.length; i++) {
+                                    if (thisUserRegisteredEmails[i].emailAddress == allocatedEmail && thisUserRegisteredEmails[i].parentEmail == sendingFrom) {
+                                        allocatedEmailData = thisUserRegisteredEmails[i]
+                                    }
+                                }
 
+                                senderName = allocatedEmailData.senderName;
+                                senderSignature = allocatedEmailData.signature;
+                                senderPassword = allocatedEmailData.password
+                                sendingEmail = sendingFromData.emailAddress
+                                visibleEmail = allocatedEmailData.emailAddress
+                            }
+                            let newBody;
 
-                            if (thisUserRegisteredEmails.some(item => item === senderEmail)) {
-                                let sent = emailSender.sendOutbound(senderEmail, senderPassword, senderName, taskSubject, newBody, element.emailAllocations, element.nameAllocations, taskSendingRate, taskName, outboundName, sendingFrom, taskGreeting)
-                                // console.log("this email is registered "+sendingFrom)
-                            }
-                            else {
-                                //send an email to the owner telling him that he deleted the email required to  send a task
-                                sendOutboundEmailNotFound(ownerAccount, outboundName, taskName, senderEmail)
-                                //    console.log("this email is not registered "+sendingFrom)
-                            }
-                            //console.log("----------------------------------------------------")
+                            if (taskBodyType == "text") { newBody = taskBody + "\n\n" + senderSignature }
+                            else { 
+                                let lines = senderSignature.split('\n');
+                                let newsenderSignature="";
+                                lines.forEach(line => {
+                                    newsenderSignature += '<p>' + line + '</p>';
+                                });
+                                
+                                newBody = taskBody + "<br/>" + newsenderSignature }
+                            let sent = emailSender.sendOutbound(sendingEmail, visibleEmail, senderPassword, senderName, taskSubject, newBody, element.emailAllocations, element.nameAllocations, taskSendingRate, taskName, outboundName, taskGreeting, ownerAccount, taskBodyType)
+
 
                         }
-                        catch (error) {
-                            sendOutboundEmailDataNotFound(ownerAccount, outboundName, taskName)
-                            // console.log(error)
+                        else {
+                            //send an email to the owner telling him that he deleted the email required to  send a task
+                            sendOutboundEmailNotFound(ownerAccount, outboundName, taskName, senderEmail)
                         }
 
-
-                    });
-
+                    }
 
 
+                }
+                else {
+                    // send email outbound not found
+                }
+
+            }
 
 
-                })
-                .catch((error) => {
-                    return res.status(400).json(error.message)
-                })
+
+
 
         }
 
@@ -542,11 +600,22 @@ app.post("/deleteOutboundEmail", async (req, res) => {
 })
 app.post("/deleteEmail", async (req, res) => {
 
-    const { emailAddress, ownerAccount } = req.body;
+    const { email, ownerAccount } = req.body;
 
     try {
         // Delete documents from outBoundModel
-        const emailDeleteResult = await emailModel.deleteMany({ emailAddress, emailAddress });
+
+        let emailDeleteResult;
+
+        if (email.primaryEmail == true) {
+            emailDeleteResult = await emailModel.findOneAndDelete({ ownerAccount: ownerAccount, emailAddress: email.emailAddress });
+        }
+        else {
+            emailDeleteResult = await emailModel.findOneAndDelete({ ownerAccount: ownerAccount, emailAddress: email.emailAddress, parentEmail: email.parentEmail });
+        }
+
+
+
         if (emailDeleteResult) {
             return res.status(200).json({ message: "email-deleted" })
         }
