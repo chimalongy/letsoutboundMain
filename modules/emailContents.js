@@ -1,5 +1,30 @@
 const outBoundModel = require("../models/outboundSchema");
-
+const style =
+    `<style>
+body {
+    font-family: Arial, sans-serif;
+    background-color: #f5f5f5;
+}
+.container {
+    max-width: 600px;
+    margin: 0 auto;
+    padding: 20px;
+    background-color: #ffffff;
+    border-radius: 5px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+h3 {
+    color: #333;
+}
+p {
+    color: #555;
+}
+.verification-code {
+    font-size: 24px;
+    font-weight: bold;
+    color: #007bff;
+}
+</style>`
 
 function regCodeEmailContent(recieverName, code) {
     const emailContent = `
@@ -67,8 +92,8 @@ function outboundEmailDataNotFound(outbondName, taskName) {
 }
 
 function TaskCompletionEmail(outboundName, taskName, sendingEmail, visibleEmail) {
-    const emailContent = 
-`Hello,
+    const emailContent =
+        `Hello,
 
 We're pleased to confirm that the task [${taskName}] you assigned to outbound [${outboundName}] has been successfully completed through ${sendingEmail} sending as ${visibleEmail}.
     
@@ -77,12 +102,55 @@ If you have any questions or require further information, please don't hesitate 
 Best regards,
 LetsOutbound Team
   `
-  return emailContent
+    return emailContent
 }
+
+function UpdatePasswordCodeContent(code) {
+    const emailContent =
+        `<!DOCTYPE html>
+    <html>
+    <head>
+        <title>Update Password</title>
+        ${style}
+    </head>
+    <body>
+        <div class="container">
+            <h3>Hi</h3>
+            <p>To change your password, use this code:</p>
+            <p class="verification-code">${code}</p>
+            <p>If you did not request for this, please give us a quick reply.</p>
+            <p>Best regards,<br>Crypto Black Market Team</p>
+        </div>
+    </body>
+    </html>`;
+    return emailContent;
+}
+function passwordUpdateConfirmation(recieverName) {
+    const emailContent =
+        `<!DOCTYPE html>
+    <html>
+    <head>
+        <title>Welcome Onboard</title>
+        ${style}
+    </head>
+    <body>
+        <div class="container">
+            <h3>Hi, ${recieverName} Password Changed</h3>
+            <p>Your password was changed.</p>
+            <p>If you did not create an account on our platform, please ignore this email.</p>
+            <p>Best regards,<br>Crypto Black Market Team</p>
+        </div>
+    </body>
+    </html>`;
+    return emailContent;
+}
+
 
 module.exports = {
     regCodeEmailContent,
     outboundEmailNotFoundContent,
     outboundEmailDataNotFound,
-    TaskCompletionEmail
+    TaskCompletionEmail,
+    UpdatePasswordCodeContent,
+    passwordUpdateConfirmation
 }

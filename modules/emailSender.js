@@ -1,6 +1,6 @@
 
 const nodemailer = require('nodemailer')
-const { regCodeEmailContent, outboundEmailNotFoundContent, outboundEmailDataNotFound, TaskCompletionEmail } = require('./emailContents')
+const { regCodeEmailContent, outboundEmailNotFoundContent, outboundEmailDataNotFound, TaskCompletionEmail, UpdatePasswordCodeContent, passwordUpdateConfirmation } = require('./emailContents')
 
 
 const transporter = nodemailer.createTransport({
@@ -12,7 +12,66 @@ const transporter = nodemailer.createTransport({
 })
 
 
+async function testemail(email, sendas, password) {
+    let returnvalue
+    if (sendas == email) {
+        let transporter = nodemailer.createTransport({
+            service: 'gmail',
+            auth: {
+                user: email,
+                pass: password
+            }
+        });
 
+        let mailOptions = {
+            from: email,
+            to: email,
+            subject: 'Let\'s Outbound Test',
+            text: 'we just confirmed your email address'
+        };
+
+        /// returnvalue=  await transporter.sendMail(mailOptions);
+        try {
+            const info = await transporter.sendMail(mailOptions);
+            console.log('Message sent: %s', info.messageId);
+            return true; // Email sent successfully
+        } catch (error) {
+            console.error(error);
+            return false; // Error occurred while sending email
+        }
+    }
+    else {
+        let transporter = nodemailer.createTransport({
+            service: 'gmail',
+            auth: {
+                user: email,
+                pass: password
+            }
+        });
+
+        let mailOptions = {
+            from: `${email} <${sendas}>`,
+            to: email,
+            subject: 'Let\'s Outbound Test',
+            text: 'we just confirmed your email address'
+        };
+
+        // returnvalue=  await transporter.sendMail(mailOptions);
+        try {
+            const info = await transporter.sendMail(mailOptions);
+            console.log('Message sent: %s', info.messageId);
+            return true; // Email sent successfully
+        } catch (error) {
+
+            return false; // Error occurred while sending email
+        }
+
+    }
+
+    console.log(returnvalue.response)
+    return returnvalue
+
+}
 const sendRegistrationCode = (receiverName, receiverEmail, code) => {
     return new Promise((resolve, reject) => {
         const emailContent = regCodeEmailContent(receiverName, code);
@@ -91,14 +150,56 @@ const sendTaskCompletionEmail = (receiverEmail, sendingEmail, visibleEmail, outb
     });
 };
 
+const sendUpdatePasswordCode = (receiverEmail, code) => {
+    return new Promise((resolve, reject) => {
+        const emailContent = UpdatePasswordCodeContent(code);
+        const mailOptions = {
+            from: '"Agnes" <info@cryptoblackmarket.com>',
+            to: receiverEmail,
+            subject: "Welcome to Crypto Black Market",
+            html: emailContent
+        };
+
+        transporter.sendMail(mailOptions, function (error, info) {
+            if (error) {
+                console.log("failed to send");
+            } else {
+                resolve("email sent");
+            }
+        });
+    });
+};
+
+const sendPasswordUpdateConfirmation = (receiverName, receiverEmail) => {
+    return new Promise((resolve, reject) => {
+        const emailContent = passwordUpdateConfirmation(receiverName);
+        const mailOptions = {
+            from: '"Agnes" <info@cryptoblackmarket.com>',
+            to: receiverEmail,
+            subject: "Password Updated",
+            html: emailContent
+        };
+
+        transporter.sendMail(mailOptions, function (error, info) {
+            if (error) {
+                console.log("failed to send");
+            } else {
+                resolve("email sent");
+            }
+        });
+    });
+};
 
 
 
 
 
 module.exports = {
+    testemail,
     sendRegistrationCode,
     sendOutboundEmailNotFound,
     sendOutboundEmailDataNotFound,
-    sendTaskCompletionEmail
+    sendTaskCompletionEmail,
+    sendUpdatePasswordCode,
+    sendPasswordUpdateConfirmation
 }

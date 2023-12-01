@@ -10,7 +10,10 @@ const emailModel = require('./models/emailSchema')
 const outBoundModel = require('./models/outboundSchema');
 const taskModel = require('./models/taskSchema')
 let port = process.env.PORT;
-const { sendRegistrationCode, sendOutboundEmailNotFound, sendOutboundEmailDataNotFound } = require('./modules/emailSender')
+const { testemail, sendRegistrationCode, sendOutboundEmailNotFound, sendOutboundEmailDataNotFound, sendUpdatePasswordCode, sendPasswordUpdateConfirmation } = require('./modules/emailSender')
+//const { sendRegistrationCode, sendWelcomeEmail, sendUpdatePasswordCode, sendPasswordUpdateConfirmation } = require("./modules/emailmodules/emailSender")
+
+
 const cron = require('node-cron')
 const { emailExtractor } = require("./modules/scrap")
 
@@ -21,7 +24,7 @@ const path = require('path')
 
 
 const app = express();
-app.use(cors()); 
+app.use(cors());
 app.use(bodyParser.json())
 
 //set up cron jobs
@@ -49,7 +52,16 @@ app.post("/scrapEmails", async (req, res) => {
 
 
 
+app.post("/testemail", async (req, res) => {
+    const { email, sendas, password } = req.body
+    if (await testemail(email, sendas, password) == true) {
+        res.status(200).json({ message: "sent" })
+    }
+    else {
+        res.status(200).json({ message: "failed" })
+    }
 
+})
 
 
 // send registration code
@@ -64,7 +76,17 @@ app.post("/sendregisterationcode", async (req, res) => {
         res.status(400).json(error.message)
     }
 })
+app.post("/sendUpdatePasswordCode", async (req, res) => {
 
+    try {
+        const { recieverEmail, code } = req.body;
+        sendUpdatePasswordCode(recieverEmail, code)
+        res.status(200).json({ message: "email-sent" })
+    }
+    catch (error) {
+        return res.status(200).json({ message: "error-connecting" })
+    }
+})
 app.post("/finduser", async (req, res) => {
     try {
         const { email } = req.body;
@@ -85,7 +107,9 @@ app.post("/findemail", async (req, res) => {
         if (!emailCheck) {
             return res.status(200).json({ message: "not-found" });
         }
-        res.status(200).json({ message: "found", data: emailCheck })
+        else {
+            res.status(200).json({ message: "found", data: emailCheck })
+        }
     }
     catch (error) {
         res.status(400).json(error.message);
@@ -111,6 +135,35 @@ app.post("/findsimilaremails", async (req, res) => {
 })
 
 
+app.post("/updatePassword", async (req, res) => {
+
+    try {
+        const { recieverEmail, password } = req.body;
+        hashedpassword = await bcryt.hash(password, 10)
+
+
+        const user = await userModel.findOne({ email: recieverEmail })
+        user.password = hashedpassword;
+        const result = await user.save()
+
+        if (!result) {
+            return res.status(200).json({ message: "not-updated" })
+        }
+        else {
+            sendPasswordUpdateConfirmation(user.firstName, user.email)
+            return res.status(200).json({ message: "updated" })
+        }
+
+
+
+
+
+
+    }
+    catch (error) {
+        return res.status(200).json({ message: JSON.stringify(error) })
+    }
+})
 app.post("/updatedaysassigned", async (req, res) => {
     try {
         const { ownerAccount, email, day, taskName } = req.body
@@ -341,17 +394,22 @@ app.post("/registertask", async (req, res) => {
                                 sendingEmail = sendingFromData.emailAddress
                                 visibleEmail = allocatedEmailData.emailAddress
                             }
-                            let newBody;
+                            let newBody; 
 
                             if (taskBodyType == "text") { newBody = taskBody + "\n\n" + senderSignature }
                             else { 
-                                let lines = senderSignature.split('\n');
-                                let newsenderSignature="";
-                                lines.forEach(line => {
-                                    newsenderSignature += '<p>' + line + '</p>';
-                                });
-                                
-                                newBody = taskBody + "<br/>" + newsenderSignature }
+                                // let lines = senderSignature.split('\n');
+                                // let newsenderSignature = "";
+                                // lines.forEach(line => {
+                                //     newsenderSignature += '<p>' + line + '</p>';
+                                // });
+
+                                // let newsenderSignature = `<pre>${senderSignature}</pre>`;
+                                let newsenderSignature = `<p style="white-space: pre-line;">${senderSignature}</p>`;
+
+
+                                newBody = taskBody + "<br/>" + newsenderSignature
+                            }
                             let sent = emailSender.sendOutbound(sendingEmail, visibleEmail, senderPassword, senderName, taskSubject, newBody, element.emailAllocations, element.nameAllocations, taskSendingRate, taskName, outboundName, taskGreeting, ownerAccount, taskBodyType)
 
 
