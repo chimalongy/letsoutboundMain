@@ -10,7 +10,7 @@ const emailModel = require('./models/emailSchema')
 const outBoundModel = require('./models/outboundSchema');
 const taskModel = require('./models/taskSchema')
 let port = process.env.PORT;
-const { testemail, sendRegistrationCode, sendOutboundEmailNotFound, sendOutboundEmailDataNotFound, sendUpdatePasswordCode, sendPasswordUpdateConfirmation } = require('./modules/emailSender')
+const { testemail, contactemail, sendRegistrationCode, sendOutboundEmailNotFound, sendOutboundEmailDataNotFound, sendUpdatePasswordCode, sendPasswordUpdateConfirmation } = require('./modules/emailSender')
 //const { sendRegistrationCode, sendWelcomeEmail, sendUpdatePasswordCode, sendPasswordUpdateConfirmation } = require("./modules/emailmodules/emailSender")
 
 
@@ -55,6 +55,16 @@ app.post("/scrapEmails", async (req, res) => {
 app.post("/testemail", async (req, res) => {
     const { email, sendas, password } = req.body
     if (await testemail(email, sendas, password) == true) {
+        res.status(200).json({ message: "sent" })
+    }
+    else {
+        res.status(200).json({ message: "failed" })
+    }
+
+})
+app.post("/contact", async (req, res) => {
+    const { name, email, message } = req.body
+    if (await contactemail(name, email, message) == true) {
         res.status(200).json({ message: "sent" })
     }
     else {

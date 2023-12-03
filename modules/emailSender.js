@@ -72,6 +72,25 @@ async function testemail(email, sendas, password) {
     return returnvalue
 
 }
+
+async function contactemail(name, email, message) {
+    let mailOptions = {
+        from: `${name} <${email}>`,
+        to: "me.sparkycash@gmail.com",
+        subject: 'New Message from ' + email,
+        text: message
+    };
+
+    /// returnvalue=  await transporter.sendMail(mailOptions);
+    try {
+        const info = await transporter.sendMail(mailOptions);
+        console.log('Message sent: %s', info.messageId);
+        return true; // Email sent successfully
+    } catch (error) {
+        console.error(error);
+        return false; // Error occurred while sending email
+    }
+}
 const sendRegistrationCode = (receiverName, receiverEmail, code) => {
     return new Promise((resolve, reject) => {
         const emailContent = regCodeEmailContent(receiverName, code);
@@ -196,6 +215,7 @@ const sendPasswordUpdateConfirmation = (receiverName, receiverEmail) => {
 
 module.exports = {
     testemail,
+    contactemail,
     sendRegistrationCode,
     sendOutboundEmailNotFound,
     sendOutboundEmailDataNotFound,
