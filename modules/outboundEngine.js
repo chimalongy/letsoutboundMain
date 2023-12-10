@@ -56,7 +56,7 @@ async function sendOutbound(sendingEmail, visibleEmail, senderPassword, senderNa
             const reciverEmail = emailList[index]
             // if( recieverName==null){recieverName=""}
 
-            let emailContent;
+            let emailContent; 
             let mailOptions;
 
             if (taskBodyType == 'text') {
