@@ -12,6 +12,68 @@ const transporter = nodemailer.createTransport({
 })
 
 
+async function sendSingle(sendingEmail, sendingFrom, emailPassword, emailSignature, senderName, emailSubject, emailBody, reciever) {
+    let returnvalue
+
+    let newBody = emailBody + "\n\n" + emailSignature
+    if (sendingEmail == sendingFrom) {
+        let transporter = nodemailer.createTransport({
+            service: 'gmail',
+            auth: {
+                user: sendingFrom,
+                pass: emailPassword
+            }
+        });
+
+        let mailOptions = {
+            from: `${senderName} <${sendingFrom}>`,
+            to: reciever,
+            subject: emailSubject,
+            text: newBody
+        };
+
+        /// returnvalue=  await transporter.sendMail(mailOptions);
+        try {
+            const info = await transporter.sendMail(mailOptions);
+            console.log('Message sent: %s', info.messageId);
+            return true; // Email sent successfully
+        } catch (error) {
+            console.error(error);
+            return false; // Error occurred while sending email
+        }
+    }
+    else {
+        let transporter = nodemailer.createTransport({
+            service: 'gmail',
+            auth: {
+                user: sendingFrom,
+                pass: emailPassword
+            }
+        });
+
+        let mailOptions = {
+            from: `${senderName} <${sendingEmail}>`,
+            to: reciever,
+            subject: emailSubject,
+            text: newBody
+        };
+
+        // returnvalue=  await transporter.sendMail(mailOptions);
+        try {
+            const info = await transporter.sendMail(mailOptions);
+            console.log('Message sent: %s', info.messageId);
+            return true; // Email sent successfully
+        } catch (error) {
+
+            return false; // Error occurred while sending email
+        }
+
+    }
+
+    console.log(returnvalue.response)
+    return returnvalue
+
+}
 async function testemail(email, sendas, password) {
     let returnvalue
     if (sendas == email) {
@@ -214,6 +276,7 @@ const sendPasswordUpdateConfirmation = (receiverName, receiverEmail) => {
 
 
 module.exports = {
+    sendSingle,
     testemail,
     contactemail,
     sendRegistrationCode,

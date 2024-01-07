@@ -11,7 +11,7 @@ const outBoundModel = require('./models/outboundSchema');
 const taskModel = require('./models/taskSchema')
 const scrapeModel = require("./models/scrapeSchema")
 let port = process.env.PORT;
-const { testemail, contactemail, sendRegistrationCode, sendOutboundEmailNotFound, sendOutboundEmailDataNotFound, sendUpdatePasswordCode, sendPasswordUpdateConfirmation } = require('./modules/emailSender')
+const {sendSingle, testemail, contactemail, sendRegistrationCode, sendOutboundEmailNotFound, sendOutboundEmailDataNotFound, sendUpdatePasswordCode, sendPasswordUpdateConfirmation } = require('./modules/emailSender')
 const ScrapeLinks = require("./modules/scrapeEngine")
 //const { sendRegistrationCode, sendWelcomeEmail, sendUpdatePasswordCode, sendPasswordUpdateConfirmation } = require("./modules/emailmodules/emailSender")
 
@@ -44,10 +44,20 @@ async function setupScrapeJob(ownerAccount, scrapeName, scrapeLinks) {
 
 }
 
+ 
+    
 
 
+app.post("/sendsingle", async (req, res) => {
+    const { sendingEmail, sendingFrom, emailPassword,emailSignature,senderName,emailSubject,emailBody, reciever } = req.body
+    if (await sendSingle(sendingEmail, sendingFrom, emailPassword,emailSignature,senderName,emailSubject,emailBody,reciever) == true) {
+        res.status(200).json({ message: "sent" })
+    }
+    else {
+        res.status(200).json({ message: "failed" })
+    }
 
-
+})
 app.post("/testemail", async (req, res) => {
     const { email, sendas, password } = req.body
     if (await testemail(email, sendas, password) == true) {
@@ -58,6 +68,10 @@ app.post("/testemail", async (req, res) => {
     }
 
 })
+
+
+
+
 app.post("/contact", async (req, res) => {
     const { name, email, message } = req.body
     if (await contactemail(name, email, message) == true) {
@@ -68,6 +82,7 @@ app.post("/contact", async (req, res) => {
     }
 
 })
+
 
 
 // send registration code
