@@ -12,9 +12,7 @@ const taskModel = require('./models/taskSchema')
 const scrapeModel = require("./models/scrapeSchema")
 let port = process.env.PORT;
 const { sendSingle, testemail, contactemail, sendRegistrationCode, sendOutboundEmailNotFound, sendOutboundEmailDataNotFound, sendUpdatePasswordCode, sendPasswordUpdateConfirmation } = require('./modules/emailSender')
-const ScrapeLinks = require("./modules/scrapeEngine")
-//const { sendRegistrationCode, sendWelcomeEmail, sendUpdatePasswordCode, sendPasswordUpdateConfirmation } = require("./modules/emailmodules/emailSender")
-
+//const ScrapeLinks = require("./modules/scrapeEngine")
 
 const cron = require('node-cron')
 
@@ -37,12 +35,12 @@ function setupCronJob(taskName, schedule, taskFunction, timeZone) {
     });
 }
 
-async function setupScrapeJob(ownerAccount, scrapeName, scrapeLinks) {
-    let scrapeResult = await ScrapeLinks(scrapeLinks);
-    console.log(scrapeResult)
-    let updateScraping = await scrapeModel.findOneAndUpdate({ ownerAccount: ownerAccount, scrapeName: scrapeName }, { $set: { scrapeResults: scrapeResult, completed: true } }, { new: true })
+// async function setupScrapeJob(ownerAccount, scrapeName, scrapeLinks) {
+//     let scrapeResult = await ScrapeLinks(scrapeLinks);
+//     console.log(scrapeResult)
+//     let updateScraping = await scrapeModel.findOneAndUpdate({ ownerAccount: ownerAccount, scrapeName: scrapeName }, { $set: { scrapeResults: scrapeResult, completed: true } }, { new: true })
 
-}
+// }
 
 
 
@@ -769,32 +767,6 @@ app.post("/deleteEmail", async (req, res) => {
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 app.use(express.static(path.join(__dirname, "client/build")))
 console.log("__dirnames is: " + __dirname)
 
@@ -817,3 +789,5 @@ mongoose.connect(process.env.MONGO_URI)
     })
 
 //"Could not connect to DataBase"
+
+//TO ADD SCRAPPING JUST INSALL THE PUPPETTER PACKAGE
