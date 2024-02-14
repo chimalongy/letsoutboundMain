@@ -9,10 +9,10 @@ const userModel = require('./models/userSchema');
 const emailModel = require('./models/emailSchema')
 const outBoundModel = require('./models/outboundSchema');
 const taskModel = require('./models/taskSchema')
+const scrapeModel = require("./models/scrapeSchema")
 let port = process.env.PORT;
-const { testemail, contactemail, sendRegistrationCode, sendOutboundEmailNotFound, sendOutboundEmailDataNotFound, sendUpdatePasswordCode, sendPasswordUpdateConfirmation } = require('./modules/emailSender')
-//const { sendRegistrationCode, sendWelcomeEmail, sendUpdatePasswordCode, sendPasswordUpdateConfirmation } = require("./modules/emailmodules/emailSender")
-
+const { sendSingle, testemail, contactemail, sendRegistrationCode, sendOutboundEmailNotFound, sendOutboundEmailDataNotFound, sendUpdatePasswordCode, sendPasswordUpdateConfirmation } = require('./modules/emailSender')
+//const ScrapeLinks = require("./modules/scrapeEngine")
 
 const cron = require('node-cron')
 
@@ -35,23 +35,27 @@ function setupCronJob(taskName, schedule, taskFunction, timeZone) {
     });
 }
 
+// async function setupScrapeJob(ownerAccount, scrapeName, scrapeLinks) {
+//     let scrapeResult = await ScrapeLinks(scrapeLinks);
+//     console.log(scrapeResult)
+//     let updateScraping = await scrapeModel.findOneAndUpdate({ ownerAccount: ownerAccount, scrapeName: scrapeName }, { $set: { scrapeResults: scrapeResult, completed: true } }, { new: true })
 
-app.post("/scrapEmails", async (req, res) => {
+// }
 
-    const { ownerAccount, domains } = req.body
-    console.log(ownerAccount)
 
-    emailExtractor(domains)
-    // .then((allEmails) => {
-    //    return res.status(200).json({message:allEmails})
-    // })
-    // .catch((error) => {
-    //     return res.status(200).json({message:"error occured"})
-    // });
+
+
+
+app.post("/sendsingle", async (req, res) => {
+    const { sendingEmail, sendingFrom, emailPassword, emailSignature, senderName, emailSubject, emailBody, reciever } = req.body
+    if (await sendSingle(sendingEmail, sendingFrom, emailPassword, emailSignature, senderName, emailSubject, emailBody, reciever) == true) {
+        res.status(200).json({ message: "sent" })
+    }
+    else {
+        res.status(200).json({ message: "failed" })
+    }
+
 })
-
-
-
 app.post("/testemail", async (req, res) => {
     const { email, sendas, password } = req.body
     if (await testemail(email, sendas, password) == true) {
@@ -62,6 +66,10 @@ app.post("/testemail", async (req, res) => {
     }
 
 })
+
+
+
+
 app.post("/contact", async (req, res) => {
     const { name, email, message } = req.body
     if (await contactemail(name, email, message) == true) {
@@ -72,6 +80,7 @@ app.post("/contact", async (req, res) => {
     }
 
 })
+
 
 
 // send registration code
@@ -291,7 +300,18 @@ app.post("/registeroutbound", async (req, res) => {
     }
 })
 
+app.post("/registerscrape", async (req, res) => {
+    const { ownerAccount, scrapeName, scrapeLinks } = req.body
+    let scrapingExist = await scrapeModel.findOne({ ownerAccount: ownerAccount, scrapeName: scrapeName })
+    if (scrapingExist) { return res.status(200).json("scraping-exist") }
+    else {
+        setupScrapeJob(ownerAccount, scrapeName, scrapeLinks)
+        let newScrape = await scrapeModel.create({ ownerAccount: ownerAccount, scrapeName: scrapeName, scrapeLinks: scrapeLinks, completed: false })
+        if (newScrape) { return res.status(200).json("scraping-registered") }
+        else { return res.status(200).json("error") }
 
+    }
+})
 
 
 app.post("/registertask", async (req, res) => {
@@ -404,10 +424,10 @@ app.post("/registertask", async (req, res) => {
                                 sendingEmail = sendingFromData.emailAddress
                                 visibleEmail = allocatedEmailData.emailAddress
                             }
-                            let newBody; 
+                            let newBody;
 
                             if (taskBodyType == "text") { newBody = taskBody + "\n\n" + senderSignature }
-                            else { 
+                            else {
                                 // let lines = senderSignature.split('\n');
                                 // let newsenderSignature = "";
                                 // lines.forEach(line => {
@@ -501,6 +521,9 @@ app.post("/register", async (req, res) => {
         res.status(400).json(error.message);
     }
 })
+
+
+
 //login
 app.post("/login", async (req, res) => {
     const { email, password } = req.body
@@ -555,6 +578,20 @@ app.post("/getusertasks", async (req, res) => {
         return res.status(400).json(error.message)
     }
 })
+app.post("/getuserscrapings", async (req, res) => {
+    try {
+        const { ownerAccount } = req.body;
+        const userScrapings = await scrapeModel.find({ ownerAccount: ownerAccount });
+        if (!userScrapings) {
+            return res.status(200).json({ message: "no-scrappings-found" })
+        }
+        return res.status(200).json({ message: "scrapings-found", data: userScrapings })
+
+    } catch (error) {
+        return res.status(400).json(error.message)
+    }
+})
+
 
 
 
@@ -666,6 +703,32 @@ app.post("/deleteOutboundEmail", async (req, res) => {
 
 
 })
+app.post("/deletescraping", async (req, res) => {
+
+    const { scrapingToDelete, ownerAccount } = req.body;
+
+    try {
+        // Delete documents from outBoundModel
+
+        let result = await scrapeModel.findOneAndDelete({ ownerAccount: ownerAccount, scrapeName: scrapingToDelete });
+
+        if (result) {
+            return res.status(200).json({ message: "scraping-deleted" })
+        }
+        else {
+            return res.status(200).json({ message: "error" })
+        }
+
+    } catch (err) {
+        console.error("Error deleting documents from emailModel:", err);
+    }
+
+
+
+
+
+
+})
 app.post("/deleteEmail", async (req, res) => {
 
     const { email, ownerAccount } = req.body;
@@ -704,32 +767,6 @@ app.post("/deleteEmail", async (req, res) => {
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 app.use(express.static(path.join(__dirname, "client/build")))
 console.log("__dirnames is: " + __dirname)
 
@@ -738,7 +775,7 @@ app.get("*", (req, res) => {
         path.join(__dirname, "client/build/index.html")
     )
 })
- 
+
 
 
 mongoose.connect(process.env.MONGO_URI)
@@ -752,3 +789,5 @@ mongoose.connect(process.env.MONGO_URI)
     })
 
 //"Could not connect to DataBase"
+
+//TO ADD SCRAPPING JUST INSALL THE PUPPETTER PACKAGE

@@ -47,8 +47,8 @@ function setupCronJob(taskName, schedule, taskFunction, timeZone) {
 
 
 app.post("/sendsingle", async (req, res) => {
-    const { sendingEmail, sendingFrom, emailPassword, emailSignature, senderName, emailSubject, emailBody, reciever } = req.body
-    if (await sendSingle(sendingEmail, sendingFrom, emailPassword, emailSignature, senderName, emailSubject, emailBody, reciever) == true) {
+    const { sendingEmail, sendingFrom, emailPassword, emailSignature, senderName, emailSubject, emailBody, reciever, thread, type } = req.body
+    if (await sendSingle(sendingEmail, sendingFrom, emailPassword, emailSignature, senderName, emailSubject, emailBody, reciever,thread, type) == true) {
         res.status(200).json({ message: "sent" })
     }
     else {
@@ -316,8 +316,9 @@ app.post("/registerscrape", async (req, res) => {
 
 app.post("/registertask", async (req, res) => {
     try {
+        console.log(req.body)
 
-        const { ownerAccount, outboundName, taskName, taskDate, taskTime, taskSendingRate, taskSubject, taskBody, timeZone, taskGreeting, taskBodyType } = req.body;
+        const { ownerAccount, outboundName, taskName, taskDate, taskTime, taskSendingRate, taskSubject, taskBody, timeZone, taskGreeting, taskBodyType, taskType } = req.body;
 
 
         async function taskFunction() {
@@ -440,7 +441,8 @@ app.post("/registertask", async (req, res) => {
 
                                 newBody = taskBody + "<br/>" + newsenderSignature
                             }
-                            let sent = emailSender.sendOutbound(sendingEmail, visibleEmail, senderPassword, senderName, taskSubject, newBody, element.emailAllocations, element.nameAllocations, taskSendingRate, taskName, outboundName, taskGreeting, ownerAccount, taskBodyType)
+                            let threadIDs = element.threadIDs || Array(element.emailAllocations.length).fill("")
+                            let sent = emailSender.sendOutbound(sendingEmail, visibleEmail, senderPassword, senderName, taskSubject, newBody, element.emailAllocations, element.nameAllocations, taskSendingRate, taskName, outboundName, taskGreeting, ownerAccount, taskBodyType, taskType, threadIDs, index)
 
 
                         }
@@ -464,7 +466,6 @@ app.post("/registertask", async (req, res) => {
 
 
         }
-
 
 
         const [year, month, day] = taskDate.split('-').map(Number);
@@ -654,8 +655,9 @@ app.post("/deleteOutboundEmail", async (req, res) => {
 
             let formerEmailList = emailEntry.emailAllocations
             let formerNameList = emailEntry.nameAllocations
+            let formerThreadID = emailEntry.threadIDs || Array(formerEmailList.length).fill("")
 
-            let newEmailList = []; let newNameList = []
+            let newEmailList = []; let newNameList = []; let newThreadIDs = []
 
             for (let i = 0; i < formerEmailList.length; i++) {
                 let exist = false
@@ -667,10 +669,12 @@ app.post("/deleteOutboundEmail", async (req, res) => {
                 if (exist == false) {
                     newEmailList.push(formerEmailList[i])
                     newNameList.push(formerNameList[i])
+                    newThreadIDs.push(formerThreadID[i])
                 }
             }
             emailEntry.emailAllocations = newEmailList;
             emailEntry.nameAllocations = newNameList;
+            emailEntry.threadIDs = newThreadIDs;
 
         });
         newMailList = outbound.emailList
