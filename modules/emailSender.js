@@ -12,10 +12,76 @@ const transporter = nodemailer.createTransport({
 })
 
 
-async function sendSingle(sendingEmail, sendingFrom, emailPassword, emailSignature, senderName, emailSubject, emailBody, reciever, thread, type) {
-    let returnvalue
+async function sendSingle(sendingEmail, sendingFrom, emailPassword, emailSignature, senderName, emailSubject, emailBody, reciever, thread, type, bodyType) {
+    let returnvalue;
+    let newBody
 
-    let newBody = emailBody + "\n\n" + emailSignature
+    if (bodyType == 'html') {
+        let newsenderSignature = `<p style="white-space: pre-line;">${emailSignature}</p>`;
+        emailSignature = newsenderSignature
+        newBody = emailBody + "<br/>" + emailSignature
+    }
+    if (bodyType == 'text') { newBody = emailBody + "\n\n" + emailSignature }
+
+    function setMailOptions() {
+        if (type == "newemail") {
+            let mailOptions = {}
+            if (bodyType == "text") {
+                mailOptions = {
+                    from: `${senderName} <${sendingEmail}>`,
+                    to: reciever,
+                    subject: emailSubject,
+                    text: newBody,
+                };
+            }
+            else {
+                mailOptions = {
+                    from: `${senderName} <${sendingEmail}>`,
+                    to: reciever,
+                    subject: emailSubject,
+                    html: newBody
+                }; 
+               
+            }
+            return mailOptions
+        } 
+        else {
+            let mailOptions = {}
+            if (bodyType == "text") {
+                mailOptions = {
+                    from: `${senderName} <${sendingFrom}>`,
+                    to: reciever,
+                    subject: emailSubject,
+                    text: newBody,
+                     headers:{
+                              inReplyTo: thread,
+                              references: thread
+                          }
+                      
+                };
+                
+            }
+            else {
+                mailOptions = {
+                    from: `${senderName} <${sendingFrom}>`,
+                    to: reciever,
+                    subject: emailSubject,
+                    html: newBody,
+                    headers:{
+                        inReplyTo: thread,
+                        references: thread
+                    }
+                };
+
+            }
+            return mailOptions
+        }
+    }
+ 
+
+
+
+
     if (sendingEmail == sendingFrom) {
         let transporter = nodemailer.createTransport({
             service: 'gmail',
@@ -24,29 +90,9 @@ async function sendSingle(sendingEmail, sendingFrom, emailPassword, emailSignatu
                 pass: emailPassword
             }
         });
-        let mailOptions;
 
-        if (type == "newemail") {
-            mailOptions = {
-                from: `${senderName} <${sendingFrom}>`,
-                to: reciever,
-                subject: emailSubject,
-                text: newBody
-            };
-        }
-        else {
-            mailOptions = {
-                from: `${senderName} <${sendingFrom}>`,
-                to: reciever,
-                subject: emailSubject,
-                text: newBody,
-                headers: {
-                    inReplyTo: thread,
-                    references: thread
-                }
-            }; 
-        }
 
+        let mailOptions = setMailOptions()
         /// returnvalue=  await transporter.sendMail(mailOptions);
         try {
             const info = await transporter.sendMail(mailOptions);
@@ -66,28 +112,9 @@ async function sendSingle(sendingEmail, sendingFrom, emailPassword, emailSignatu
             }
         });
 
-        let mailOptions;
 
-        if (type == "newemail") {
-            mailOptions = {
-                from: `${senderName} <${sendingFrom}>`,
-                to: reciever,
-                subject: emailSubject,
-                text: newBody
-            };
-        }
-        else {
-            mailOptions = {
-                from: `${senderName} <${sendingFrom}>`,
-                to: reciever,
-                subject: emailSubject,
-                text: newBody,
-                headers: {
-                    inReplyTo: thread,
-                    references: thread
-                }
-            };
-        }
+
+        let mailOptions = setMailOptions()
         // returnvalue=  await transporter.sendMail(mailOptions);
         try {
             const info = await transporter.sendMail(mailOptions);

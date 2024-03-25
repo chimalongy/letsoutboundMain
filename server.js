@@ -13,6 +13,8 @@ const scrapeModel = require("./models/scrapeSchema")
 let port = process.env.PORT;
 const { sendSingle, testemail, contactemail, sendRegistrationCode, sendOutboundEmailNotFound, sendOutboundEmailDataNotFound, sendUpdatePasswordCode, sendPasswordUpdateConfirmation } = require('./modules/emailSender')
 //const ScrapeLinks = require("./modules/scrapeEngine")
+const Imap = require('imap');
+inspect = require('util').inspect;
 
 const cron = require('node-cron')
 
@@ -47,8 +49,8 @@ function setupCronJob(taskName, schedule, taskFunction, timeZone) {
 
 
 app.post("/sendsingle", async (req, res) => {
-    const { sendingEmail, sendingFrom, emailPassword, emailSignature, senderName, emailSubject, emailBody, reciever, thread, type } = req.body
-    if (await sendSingle(sendingEmail, sendingFrom, emailPassword, emailSignature, senderName, emailSubject, emailBody, reciever,thread, type) == true) {
+    const { sendingEmail, sendingFrom, emailPassword, emailSignature, senderName, emailSubject, emailBody, reciever, thread, type, bodyType } = req.body
+    if (await sendSingle(sendingEmail, sendingFrom, emailPassword, emailSignature, senderName, emailSubject, emailBody, reciever, thread, type, bodyType) == true) {
         res.status(200).json({ message: "sent" })
     }
     else {
@@ -258,6 +260,23 @@ app.post("/updateEmailData", async (req, res) => {
     }
 })
 
+app.post('/updateScraping', async (req, res) => {
+    try {
+        const { ownerAccount, scrapeName, scrapeResults } = req.body
+        console.log("THE REQUEST BODY", req.body)
+
+        let result = await scrapeModel.findOneAndUpdate({ ownerAccount: ownerAccount, scrapeName: scrapeName },
+            { $set: { scrapeResults: scrapeResults } },
+            { new: true })
+        if (result) {
+            return res.status(200).json({ message: "scrapeUpdated", data: result })
+        }
+        else { return res.status(200).json({ message: "scrape-not-updated" }) }
+
+    } catch (error) {
+
+    }
+})
 
 
 
@@ -299,21 +318,19 @@ app.post("/registeroutbound", async (req, res) => {
         res.status(400).json(error.message);
     }
 })
-
 app.post("/registerscrape", async (req, res) => {
-    const { ownerAccount, scrapeName, scrapeLinks } = req.body
+    const { ownerAccount, scrapeName, scrapeResults } = req.body
+    console.log(req.body)
     let scrapingExist = await scrapeModel.findOne({ ownerAccount: ownerAccount, scrapeName: scrapeName })
     if (scrapingExist) { return res.status(200).json("scraping-exist") }
     else {
-        setupScrapeJob(ownerAccount, scrapeName, scrapeLinks)
-        let newScrape = await scrapeModel.create({ ownerAccount: ownerAccount, scrapeName: scrapeName, scrapeLinks: scrapeLinks, completed: false })
+
+        let newScrape = await scrapeModel.create({ ownerAccount: ownerAccount, scrapeName: scrapeName, scrapeResults: scrapeResults, completed: true })
         if (newScrape) { return res.status(200).json("scraping-registered") }
         else { return res.status(200).json("error") }
 
     }
 })
-
-
 app.post("/registertask", async (req, res) => {
     try {
         console.log(req.body)
@@ -523,8 +540,6 @@ app.post("/register", async (req, res) => {
     }
 })
 
-
-
 //login
 app.post("/login", async (req, res) => {
     const { email, password } = req.body
@@ -580,12 +595,13 @@ app.post("/getusertasks", async (req, res) => {
     }
 })
 app.post("/getuserscrapings", async (req, res) => {
+    const { ownerAccount } = req.body;
     try {
-        const { ownerAccount } = req.body;
         const userScrapings = await scrapeModel.find({ ownerAccount: ownerAccount });
         if (!userScrapings) {
             return res.status(200).json({ message: "no-scrappings-found" })
         }
+        console.log(userScrapings)
         return res.status(200).json({ message: "scrapings-found", data: userScrapings })
 
     } catch (error) {
@@ -593,6 +609,111 @@ app.post("/getuserscrapings", async (req, res) => {
     }
 })
 
+app.post('/getReplies', async (req, res) => {
+    console.log("targeteed")
+    var searchSubject = 'Inquiry - Real Estate Management in Sandiego'; // Specify the subject you want to fetch
+    var messages = [];
+
+    var imap = new Imap({
+        user: 'geniusdomainname2@gmail.com',
+        password: 'mgmzzsyysfterzaz',
+        host: 'imap.gmail.com',
+        port: 993,
+        tls: true,
+        tlsOptions: {
+            rejectUnauthorized: false
+        }
+    });
+
+
+    function searchEmails(callback) {
+        const emails = [];
+
+        imap.once('ready', function () {
+            imap.openBox('INBOX', true, function (err, box) {
+                if (err) throw err;
+                imap.search(['ALL', ['SUBJECT', searchSubject]], function (err, results) {
+                    if (err) throw err;
+
+                    // Fetch emails
+                    const fetch = imap.fetch(results, { bodies: '', struct: true });
+
+                    // Process fetched emails
+                    fetch.on('message', function (msg, seqno) {
+                        const email = {
+
+                            content: ''
+                        };
+
+                        // Process message headers
+                        msg.on('message', function (mesg) {
+                            email.content = mesg.from[0];
+
+                        });
+
+                        // Process message body
+                        msg.on('body', function (stream, info) {
+                            let buffer = '';
+
+                            stream.on('data', function (chunk) {
+                                buffer += chunk.toString('utf8');
+                            });
+
+                            stream.once('end', function () {
+                                email.content = buffer;
+                            });
+                        });
+
+                        // Store the email object
+                        msg.once('end', function () {
+                            emails.push(email);
+                        });
+                    });
+
+                    // End session
+                    fetch.once('end', function () {
+                        imap.end();
+                        callback(emails);
+                    });
+                });
+            });
+        });
+
+        // Connect to the server
+        imap.connect();
+    }
+
+    // Call the function to search for emails and handle the result
+    searchEmails(function (emails) {
+        console.log(emails);
+    });
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+})
 
 
 

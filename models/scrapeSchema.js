@@ -3,7 +3,6 @@ const mongoose = require('mongoose');
 const scrapeSchema = mongoose.Schema({
     ownerAccount: { type: String, required: true },
     scrapeName: { type: String, required: true },
-    scrapeLinks: { type: Array, required: true },
     scrapeResults: { type: Array, required: false },
     completed: { type: Boolean, required: false }
 
