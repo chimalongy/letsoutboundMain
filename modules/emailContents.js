@@ -103,7 +103,7 @@ Best regards,
 LetsOutbound Team
   `
     return emailContent
-}
+} 
 
 function UpdatePasswordCodeContent(code) {
     const emailContent =

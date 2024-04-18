@@ -12,9 +12,8 @@ const taskModel = require('./models/taskSchema')
 const scrapeModel = require("./models/scrapeSchema")
 let port = process.env.PORT;
 const { sendSingle, testemail, contactemail, sendRegistrationCode, sendOutboundEmailNotFound, sendOutboundEmailDataNotFound, sendUpdatePasswordCode, sendPasswordUpdateConfirmation } = require('./modules/emailSender')
+const { getFirstTwentyEmails, fetchEmailsBySubject, fetchSpamEmailsBySubject } = require('./modules/ImapReader')
 //const ScrapeLinks = require("./modules/scrapeEngine")
-const Imap = require('imap');
-inspect = require('util').inspect;
 
 const cron = require('node-cron')
 
@@ -111,6 +110,7 @@ app.post("/sendUpdatePasswordCode", async (req, res) => {
 app.post("/finduser", async (req, res) => {
     try {
         const { email } = req.body;
+        console.log(email)
         const user = await userModel.findOne({ email: email })
         if (!user) {
             return res.status(200).json({ message: "not-found" });
@@ -319,16 +319,14 @@ app.post("/registeroutbound", async (req, res) => {
     }
 })
 app.post("/registerscrape", async (req, res) => {
+
     const { ownerAccount, scrapeName, scrapeResults } = req.body
-    console.log(req.body)
     let scrapingExist = await scrapeModel.findOne({ ownerAccount: ownerAccount, scrapeName: scrapeName })
     if (scrapingExist) { return res.status(200).json("scraping-exist") }
     else {
-
         let newScrape = await scrapeModel.create({ ownerAccount: ownerAccount, scrapeName: scrapeName, scrapeResults: scrapeResults, completed: true })
         if (newScrape) { return res.status(200).json("scraping-registered") }
         else { return res.status(200).json("error") }
-
     }
 })
 app.post("/registertask", async (req, res) => {
@@ -530,12 +528,14 @@ app.post("/registertask", async (req, res) => {
 })
 app.post("/register", async (req, res) => {
     try {
+        console.log(req.body)
         const { firstName, lastName, email, password } = req.body;
         const hashedpassword = await bcryt.hash(password, 10);
         const newUser = await userModel.create({ firstName, lastName, email, password: hashedpassword })
         res.status(200).json({ message: "registrationComplete" })
     }
     catch (error) {
+        console.log(error.message)
         res.status(400).json(error.message);
     }
 })
@@ -543,6 +543,7 @@ app.post("/register", async (req, res) => {
 //login
 app.post("/login", async (req, res) => {
     const { email, password } = req.body
+    console.log(email, password)
     const user = await userModel.findOne({ email: email })
     if (!user) {
         return res.status(200).json({ message: "not-registered" })
@@ -596,12 +597,18 @@ app.post("/getusertasks", async (req, res) => {
 })
 app.post("/getuserscrapings", async (req, res) => {
     const { ownerAccount } = req.body;
+
+    console.log('GETTING SCRAPPINGS FOR : ', ownerAccount)
+
+
+    //return res.status(200).json({ message: "scrapings-found", data: [] })
+
     try {
         const userScrapings = await scrapeModel.find({ ownerAccount: ownerAccount });
         if (!userScrapings) {
             return res.status(200).json({ message: "no-scrappings-found" })
         }
-        console.log(userScrapings)
+        // console.log(userScrapings)
         return res.status(200).json({ message: "scrapings-found", data: userScrapings })
 
     } catch (error) {
@@ -611,96 +618,39 @@ app.post("/getuserscrapings", async (req, res) => {
 
 app.post('/getReplies', async (req, res) => {
     console.log("targeteed")
-    var searchSubject = 'Inquiry - Real Estate Management in Sandiego'; // Specify the subject you want to fetch
-    var messages = [];
 
-    var imap = new Imap({
-        user: 'geniusdomainname2@gmail.com',
-        password: 'mgmzzsyysfterzaz',
-        host: 'imap.gmail.com',
-        port: 993,
-        tls: true,
-        tlsOptions: {
-            rejectUnauthorized: false
+    const { outboundDetails } = req.body
+    const requestData = JSON.parse(outboundDetails)
+    // console.log(requestData)
+    let returnData = []
+
+    // let replies = await fetchEmailsBySubject(requestData[0].emailAddress, requestData[0].password, requestData[0].threads, requestData[0].previousSubject)
+    // returnData.push(replies)
+    // console.log(replies)
+    // res.status(200).json({ data: JSON.stringify(returnData) })
+
+
+
+    async function getReplies() {
+
+        for (let i = 0; i < requestData.length; i++) {
+            let replies = await fetchEmailsBySubject(requestData[i].emailAddress, requestData[i].password, requestData[i].threads, requestData[i].previousSubject)
+            returnData.push(replies)
         }
-    });
-
-
-    function searchEmails(callback) {
-        const emails = [];
-
-        imap.once('ready', function () {
-            imap.openBox('INBOX', true, function (err, box) {
-                if (err) throw err;
-                imap.search(['ALL', ['SUBJECT', searchSubject]], function (err, results) {
-                    if (err) throw err;
-
-                    // Fetch emails
-                    const fetch = imap.fetch(results, { bodies: '', struct: true });
-
-                    // Process fetched emails
-                    fetch.on('message', function (msg, seqno) {
-                        const email = {
-
-                            content: ''
-                        };
-
-                        // Process message headers
-                        msg.on('message', function (mesg) {
-                            email.content = mesg.from[0];
-
-                        });
-
-                        // Process message body
-                        msg.on('body', function (stream, info) {
-                            let buffer = '';
-
-                            stream.on('data', function (chunk) {
-                                buffer += chunk.toString('utf8');
-                            });
-
-                            stream.once('end', function () {
-                                email.content = buffer;
-                            });
-                        });
-
-                        // Store the email object
-                        msg.once('end', function () {
-                            emails.push(email);
-                        });
-                    });
-
-                    // End session
-                    fetch.once('end', function () {
-                        imap.end();
-                        callback(emails);
-                    });
-                });
-            });
-        });
-
-        // Connect to the server
-        imap.connect();
+        for (let i = 0; i < requestData.length; i++) {
+            let replies = await fetchSpamEmailsBySubject(requestData[i].emailAddress, requestData[i].password, requestData[i].threads, requestData[i].previousSubject)
+            returnData.push(replies)
+        }
+        return true
     }
 
-    // Call the function to search for emails and handle the result
-    searchEmails(function (emails) {
-        console.log(emails);
-    });
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+    await getReplies()
+        .then((result) => {
+            console.log(returnData)
+            res.status(200).json({ data: JSON.stringify(returnData) })
+            // res.status(200).json({ data: JSON.stringify([]) })
+        })
+        .catch((err) => { console.log(err) })
 
 
 
@@ -758,21 +708,19 @@ app.post("/deleteOutbound", async (req, res) => {
     res.status(200).json({ message: "outbond-deleted" })
 
 })
-app.post("/deleteOutboundEmail", async (req, res) => {
+app.post("/deletethread", async (req, res) => {
 
-    const { outboundName, emailsToDelete } = req.body;
-    for (let i = 0; i < emailsToDelete.length; i++) {
-        console.log(emailsToDelete[i])
-    }
+    //const { outboundName, emailsToDelete } = req.body;
 
+    console.log(req.body)
 
     // Delete documents from outBoundModel
-    outbound = await outBoundModel.findOne({ outboundName: outboundName })
+    let outbound = await outBoundModel.findOne({ outboundName: req.body.outboundName })
     let newMailList = []
 
 
     if (outbound) {
-        outbound.emailList.forEach(emailEntry => {
+        outbound.emailList.forEach((emailEntry, index) => {
 
             let formerEmailList = emailEntry.emailAllocations
             let formerNameList = emailEntry.nameAllocations
@@ -780,19 +728,31 @@ app.post("/deleteOutboundEmail", async (req, res) => {
 
             let newEmailList = []; let newNameList = []; let newThreadIDs = []
 
-            for (let i = 0; i < formerEmailList.length; i++) {
-                let exist = false
-                for (let j = 0; j < emailsToDelete.length; j++) {
-                    if (emailsToDelete[j] === formerEmailList[i]) {
-                        exist = true
-                    }
+            console.log("initial list length is + " + formerThreadID.length)
+            console.log("-----------starting to search")
+            let exist = false
+            for (let i = 0; i < formerThreadID.length; i++) {
+                if (formerThreadID[i] === req.body.inReplyTo) {
+                    console.log("Found the bastard in index " + i + "at emailList index" + index)
+                    exist = true
+                    continue
                 }
-                if (exist == false) {
-                    newEmailList.push(formerEmailList[i])
-                    newNameList.push(formerNameList[i])
-                    newThreadIDs.push(formerThreadID[i])
+                else {
+                    newEmailList.push(formerEmailList[i]);
+                    newNameList.push(formerNameList[i]);
+                    newThreadIDs.push(formerThreadID[i]);
                 }
+
             }
+
+            if (!exist) {
+                console.log("THREAD NOT FOUND")
+            }
+            else {
+                console.log("The new thread ID length = " + newThreadIDs.length)
+                console.log("Search Complete")
+            }
+
             emailEntry.emailAllocations = newEmailList;
             emailEntry.nameAllocations = newNameList;
             emailEntry.threadIDs = newThreadIDs;
@@ -801,20 +761,21 @@ app.post("/deleteOutboundEmail", async (req, res) => {
         newMailList = outbound.emailList
     }
     else {
+        console.log("outbound not found")
         return res.status(200).json({ message: "outbound-not-found" })
     }
 
     try {
         const updatedDoc = await outBoundModel.findOneAndUpdate(
-            { outboundName: outboundName, },
+            { outboundName: req.body.outboundName, },
             { $set: { emailList: newMailList } },
             { new: true }
         );
 
         if (updatedDoc) {
-            return res.status(200).json({ message: "deleted" })
+            return res.status(200).json({ message: "deleted", data: updatedDoc })
         } else {
-            return res.status(200).json({ message: "could-not-delete" })
+            return res.status(200).json({ message: "could-not-delete", })
         }
     } catch (err) {
         console.error(err);
@@ -888,6 +849,11 @@ app.post("/deleteEmail", async (req, res) => {
 
 
 
+})
+app.post('/deleteReply', async (req, res) => {
+    console.log(req.body)
+    const { email, password, inReplyTo, messageId } = req.body
+    await deleteThread(email, password, messageId)
 })
 
 
